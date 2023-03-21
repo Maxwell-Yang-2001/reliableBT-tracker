@@ -26,6 +26,7 @@ func Run() {
 	var httptracker http.HTTPTracker
 	var err error
 
+	config.Logger.Info("hiiii")
 	rand.Seed(time.Now().UnixNano() * time.Now().Unix())
 
 	if !config.Config.Loaded() {
@@ -93,6 +94,9 @@ func Run() {
 		mux.HandleFunc("/announce", func(w gohttp.ResponseWriter, r *gohttp.Request) {
 			w.Write(announceResponse)
 		})
+		mux.HandleFunc("/download", func(w gohttp.ResponseWriter, r *gohttp.Request) {})
+
+
 
 		for filepath, data := range cache {
 			dataBytes := []byte(data)

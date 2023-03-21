@@ -3,8 +3,10 @@ package http
 import (
 	"bytes"
 	"expvar"
+	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
 	"time"
 	"unsafe"
 
@@ -151,13 +153,72 @@ func (w *workers) work() {
 			}
 			w.tracker.scrape(conn, p.Params)
 		case "/heartbeat":
-			writeStatus(conn, "200")
+			fmt.Println("hello")
+			writeErr(conn, "Invalid bytes")
+			var params downloadUploadParams
+			for _, param := range p.Params {
+				var key, val string
+				if equal := bytes.Index(param, []byte("=")); equal == -1 {
+					key = string(param) // noescape
+					val = "1"
+				} else {
+					key = string(param[:equal])   // noescape
+					val = string(param[equal+1:]) // escape
+				}
+
+				switch key {
+				case "downloadbytes":
+					downloadBytes, err := strconv.Atoi(val)
+					if err != nil {
+						fmt.Println("Error during conversion for the downloadbytes param")
+					}
+					params.downloadbytes = downloadBytes
+				case "uploadbytes":
+					uploadBytes, err := strconv.Atoi(val)
+					if err != nil {
+						fmt.Println("Error during conversion for the downloadbytes param")
+					}
+					params.uploadbytes = uploadBytes
+				}
+			}
+			w.tracker.calculate_speed(conn, params)
+			// writeStatus(conn, "200")
+			// writeStatus(conn, "300")
 		case "/stats":
 			// Serves expvar handler but it's hacky af
 			statRespWriter.conn = conn
 
 			conn.Write(statsHeader)
 			expvarHandler.ServeHTTP(statRespWriter, nil)
+		case "/download":
+			var params downloadUploadParams
+			for _, param := range p.Params {
+				var key, val string
+				if equal := bytes.Index(param, []byte("=")); equal == -1 {
+					key = string(param) // noescape
+					val = "1"
+				} else {
+					key = string(param[:equal])   // noescape
+					val = string(param[equal+1:]) // escape
+				}
+
+				switch key {
+				case "downloadbytes":
+					downloadBytes, err := strconv.Atoi(val)
+					if err != nil {
+						fmt.Println("Error during conversion for the downloadbytes param")
+					}
+					params.downloadbytes = downloadBytes
+				case "uploadbytes":
+					uploadBytes, err := strconv.Atoi(val)
+					if err != nil {
+						fmt.Println("Error during conversion for the downloadbytes param")
+					}
+					params.uploadbytes = uploadBytes
+				}
+			}
+			w.tracker.calculate_speed(conn, params)
+			writeStatus(conn, "200")
 		default:
 			// check if file is embedded
 			if data, ok := w.fileCache[p.Path]; ok {

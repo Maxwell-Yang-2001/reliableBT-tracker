@@ -17,6 +17,8 @@ type HTTPTracker struct {
 	peerdb   storage.Database
 	workers  workers
 	shutdown chan struct{}
+	clientAddrToDownload int
+	clientAddrToUpload int
 }
 
 // Init sets up the HTTPTracker.
