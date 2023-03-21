@@ -153,37 +153,7 @@ func (w *workers) work() {
 			}
 			w.tracker.scrape(conn, p.Params)
 		case "/heartbeat":
-			fmt.Println("hello")
-			writeErr(conn, "Invalid bytes")
-			var params downloadUploadParams
-			for _, param := range p.Params {
-				var key, val string
-				if equal := bytes.Index(param, []byte("=")); equal == -1 {
-					key = string(param) // noescape
-					val = "1"
-				} else {
-					key = string(param[:equal])   // noescape
-					val = string(param[equal+1:]) // escape
-				}
-
-				switch key {
-				case "downloadbytes":
-					downloadBytes, err := strconv.Atoi(val)
-					if err != nil {
-						fmt.Println("Error during conversion for the downloadbytes param")
-					}
-					params.downloadbytes = downloadBytes
-				case "uploadbytes":
-					uploadBytes, err := strconv.Atoi(val)
-					if err != nil {
-						fmt.Println("Error during conversion for the downloadbytes param")
-					}
-					params.uploadbytes = uploadBytes
-				}
-			}
-			w.tracker.calculate_speed(conn, params)
-			// writeStatus(conn, "200")
-			// writeStatus(conn, "300")
+			writeStatus(conn, "200")
 		case "/stats":
 			// Serves expvar handler but it's hacky af
 			statRespWriter.conn = conn

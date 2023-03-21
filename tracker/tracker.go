@@ -26,7 +26,6 @@ func Run() {
 	var httptracker http.HTTPTracker
 	var err error
 
-	config.Logger.Info("hiiii")
 	rand.Seed(time.Now().UnixNano() * time.Now().Unix())
 
 	if !config.Config.Loaded() {
