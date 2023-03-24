@@ -17,14 +17,18 @@ type HTTPTracker struct {
 	peerdb   storage.Database
 	workers  workers
 	shutdown chan struct{}
-	clientAddrToDownload int
-	clientAddrToUpload int
+	clientTorrentHashToDownload map[string]int
+	clientTorrentHashToUpload map[string]int
+	downloadSpeed int
+	uploadSpeed int
 }
 
 // Init sets up the HTTPTracker.
 func (t *HTTPTracker) Init(peerdb storage.Database) {
 	t.peerdb = peerdb
 	t.shutdown = make(chan struct{})
+	t.clientTorrentHashToDownload = make(map[string]int)
+	t.clientTorrentHashToUpload = make(map[string]int)
 }
 
 // Serve begins listening and serving clients.

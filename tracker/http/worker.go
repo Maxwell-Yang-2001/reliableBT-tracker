@@ -182,13 +182,14 @@ func (w *workers) work() {
 				case "uploadbytes":
 					uploadBytes, err := strconv.Atoi(val)
 					if err != nil {
-						fmt.Println("Error during conversion for the downloadbytes param")
+						fmt.Println("Error during conversion for the uploadbytes param")
 					}
 					params.uploadbytes = uploadBytes
+				case "infohash":
+					params.infohash = val
 				}
 			}
 			w.tracker.calculate_speed(conn, params)
-			writeStatus(conn, "200")
 		default:
 			// check if file is embedded
 			if data, ok := w.fileCache[p.Path]; ok {
