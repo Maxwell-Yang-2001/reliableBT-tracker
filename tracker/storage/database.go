@@ -45,7 +45,7 @@ type Database interface {
 	Trim()
 	SyncExpvars() error
 
-	Save(netip.Addr, uint16, bool, Hash, PeerID)
+	Save(netip.Addr, uint16, bool, Hash, PeerID, int64, int64) bool
 	Drop(Hash, PeerID)
 
 	HashStats(Hash) (uint16, uint16)
