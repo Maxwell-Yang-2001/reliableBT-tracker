@@ -110,6 +110,11 @@ db:
   # should: expiry >= announce_base + announce_fuzz
   expiry: 40m
 
+# bad actor identification
+behavior:
+  # minimum number of leechers in the swarm that enforces uploading between announcements
+  minleechers: 5
+
 # file paths
 path:
   log: "~/.cache/trakx/trakx.log"

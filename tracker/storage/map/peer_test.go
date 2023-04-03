@@ -9,9 +9,11 @@ import (
 )
 
 var (
-	testIP   = netip.AddrFrom4([4]byte{1, 2, 3, 4})
-	testHash = storage.Hash([20]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
-	testId   = storage.PeerID([20]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	testIP         = netip.AddrFrom4([4]byte{1, 2, 3, 4})
+	testHash       = storage.Hash([20]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	testId         = storage.PeerID([20]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	testUploaded   = int64(100)
+	testDownloaded = int64(200)
 )
 
 func TestSaveDrop(t *testing.T) {
@@ -23,7 +25,7 @@ func TestSaveDrop(t *testing.T) {
 		IP:       testIP,
 		Port:     4321,
 	}
-	db.Save(peerWrite.IP, peerWrite.Port, peerWrite.Complete, testHash, testId)
+	db.Save(peerWrite.IP, peerWrite.Port, peerWrite.Complete, testHash, testId, testUploaded, testDownloaded)
 	peerRead, ok := db.hashmap[testHash].Peers[testId]
 
 	if !ok {
@@ -41,6 +43,12 @@ func TestSaveDrop(t *testing.T) {
 	if peerRead.LastSeen != time.Now().Unix() {
 		t.Errorf("Peer LastSeen not correct %v:%v", peerRead.LastSeen, time.Now().Unix())
 	}
+	if peerRead.Uploaded != peerWrite.Uploaded {
+		t.Errorf("Peer Uploaded not equal %v:%v", peerRead.IP, peerWrite.IP)
+	}
+	if peerRead.Downloaded != peerWrite.Downloaded {
+		t.Errorf("Peer Downloaded not equal %v:%v", peerRead.Port, peerWrite.Port)
+	}
 
 	db.Drop(testHash, testId)
 	_, ok = db.hashmap[testHash].Peers[testId]
@@ -52,7 +60,7 @@ func TestSaveDrop(t *testing.T) {
 
 func benchmarkSave(b *testing.B, db *Memory, peer storage.Peer, hash storage.Hash, peerid storage.PeerID) {
 	for n := 0; n < b.N; n++ {
-		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid)
+		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
 	}
 }
 
@@ -64,10 +72,12 @@ func BenchmarkSave(b *testing.B) {
 	hash := storage.Hash(bytes)
 	peerid := storage.PeerID(bytes)
 	peer := storage.Peer{
-		Complete: true,
-		IP:       testIP,
-		Port:     4321,
-		LastSeen: 1234567890,
+		Complete:   true,
+		IP:         testIP,
+		Port:       4321,
+		LastSeen:   1234567890,
+		Uploaded:   5678,
+		Downloaded: 8765,
 	}
 
 	b.ResetTimer()
@@ -94,7 +104,7 @@ func BenchmarkDrop(b *testing.B) {
 
 func benchmarkSaveDrop(b *testing.B, db *Memory, peer storage.Peer, hash storage.Hash, peerid storage.PeerID) {
 	for n := 0; n < b.N; n++ {
-		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid)
+		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
 		db.Drop(hash, peerid)
 	}
 }
@@ -135,7 +145,7 @@ func benchmarkSaveDropParallel(b *testing.B, routines int) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid)
+			db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
 			db.Drop(hash, peerid)
 		}
 	})

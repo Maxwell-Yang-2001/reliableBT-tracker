@@ -10,9 +10,12 @@ type (
 
 	// Peer contains requied peer information for database.
 	Peer struct {
-		Complete bool
-		IP       netip.Addr
-		Port     uint16
-		LastSeen int64
+		Complete         bool
+		IP               netip.Addr
+		Port             uint16
+		LastSeen         int64
+		Uploaded         int64
+		Downloaded       int64
+		LeechersLastTime uint16
 	}
 )

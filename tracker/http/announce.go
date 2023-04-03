@@ -13,14 +13,16 @@ import (
 )
 
 type announceParams struct {
-	compact  bool
-	nopeerid bool
-	noneleft bool
-	event    string
-	port     string
-	hash     string
-	peerid   string
-	numwant  string
+	compact    bool
+	nopeerid   bool
+	noneleft   bool
+	event      string
+	port       string
+	hash       string
+	peerid     string
+	numwant    string
+	uploaded   int64
+	downloaded int64
 }
 
 func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Addr) {
@@ -82,7 +84,11 @@ func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Add
 		peerComplete = true
 	}
 
-	t.peerdb.Save(ip, uint16(portInt), peerComplete, hash, peerid)
+	// Also update upload and download information
+	uploaded := vals.uploaded
+	downloaded := vals.downloaded
+
+	t.peerdb.Save(ip, uint16(portInt), peerComplete, hash, peerid, uploaded, downloaded)
 	complete, incomplete := t.peerdb.HashStats(hash)
 
 	interval := int64(config.Config.Announce.Base.Seconds())

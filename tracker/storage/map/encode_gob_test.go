@@ -16,12 +16,14 @@ func TestEncodeDecodeGob(t *testing.T) {
 	hash := storage.Hash{0x48, 0x61, 0x73, 0x68, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
 	peerid := storage.PeerID{0x49, 0x44, 0x49, 0x44, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
 	peer := storage.Peer{
-		Complete: true,
-		IP:       netip.MustParseAddr("127.0.0.1"),
-		Port:     0x4f50,
-		LastSeen: time.Now().Unix(),
+		Complete:   true,
+		IP:         netip.MustParseAddr("127.0.0.1"),
+		Port:       0x4f50,
+		LastSeen:   time.Now().Unix(),
+		Uploaded:   1234,
+		Downloaded: 4321,
 	}
-	db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid)
+	db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
 
 	oldhahmap := db.hashmap
 	data, err := db.encodeGob()

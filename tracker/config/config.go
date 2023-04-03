@@ -62,6 +62,9 @@ type Configuration struct {
 		Trim   time.Duration
 		Expiry time.Duration
 	}
+	Behavior struct {
+		MinLeechers uint16
+	}
 	Path struct {
 		Log string
 		Pid string
@@ -146,6 +149,11 @@ func (config *Configuration) Parse() error {
 	// resolve env vars for database backup path
 	if strings.HasPrefix(config.DB.Backup.Path, "ENV:") {
 		config.DB.Backup.Path = os.Getenv(strings.TrimPrefix(config.DB.Backup.Path, "ENV:"))
+	}
+
+	// behavior
+	if config.Behavior.MinLeechers < 2 {
+		config.Behavior.MinLeechers = 2 // should have another leecher other than self to upload at minimum
 	}
 
 	// resolve paths

@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"expvar"
-	"fmt"
 	"net"
 	"net/netip"
 	"strconv"
@@ -112,6 +111,10 @@ func (w *workers) work() {
 					v.peerid = val
 				case "numwant":
 					v.numwant = val
+				case "uploaded":
+					v.uploaded, _ = strconv.ParseInt(val, 10, 64)
+				case "downloaded":
+					v.downloaded, _ = strconv.ParseInt(val, 10, 64)
 				}
 			}
 
@@ -160,36 +163,6 @@ func (w *workers) work() {
 
 			conn.Write(statsHeader)
 			expvarHandler.ServeHTTP(statRespWriter, nil)
-		case "/download":
-			var params downloadUploadParams
-			for _, param := range p.Params {
-				var key, val string
-				if equal := bytes.Index(param, []byte("=")); equal == -1 {
-					key = string(param) // noescape
-					val = "1"
-				} else {
-					key = string(param[:equal])   // noescape
-					val = string(param[equal+1:]) // escape
-				}
-
-				switch key {
-				case "downloadbytes":
-					downloadBytes, err := strconv.Atoi(val)
-					if err != nil {
-						fmt.Println("Error during conversion for the downloadbytes param")
-					}
-					params.downloadbytes = downloadBytes
-				case "uploadbytes":
-					uploadBytes, err := strconv.Atoi(val)
-					if err != nil {
-						fmt.Println("Error during conversion for the uploadbytes param")
-					}
-					params.uploadbytes = uploadBytes
-				case "infohash":
-					params.infohash = val
-				}
-			}
-			w.tracker.calculate_speed(conn, params)
 		default:
 			// check if file is embedded
 			if data, ok := w.fileCache[p.Path]; ok {

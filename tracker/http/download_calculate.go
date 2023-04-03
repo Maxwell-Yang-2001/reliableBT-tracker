@@ -7,12 +7,14 @@ import (
 	"github.com/crimist/trakx/pools"
 )
 
+// Note: this file is currently not in use.
+// If needed to incorporate the logic for bad actor identification, changes can be made in storage/map/peer.go.
+
 type downloadUploadParams struct {
 	downloadbytes int
-	uploadbytes int
-	infohash string
+	uploadbytes   int
+	infohash      string
 }
-
 
 func (t *HTTPTracker) calculate_speed(conn net.Conn, vals downloadUploadParams) {
 	if reflect.ValueOf(vals).IsZero() {
@@ -23,7 +25,7 @@ func (t *HTTPTracker) calculate_speed(conn net.Conn, vals downloadUploadParams) 
 	if vals.infohash == "" {
 		t.clientError(conn, "no infohash")
 		return
-	} 
+	}
 
 	if vals.downloadbytes == 0 {
 		t.clientTorrentHashToDownload[vals.infohash] = 0
@@ -32,12 +34,12 @@ func (t *HTTPTracker) calculate_speed(conn net.Conn, vals downloadUploadParams) 
 	}
 
 	if lastDownloadAmount, ok := t.clientTorrentHashToDownload[vals.infohash]; ok {
-		t.downloadSpeed = (vals.downloadbytes-lastDownloadAmount)
+		t.downloadSpeed = (vals.downloadbytes - lastDownloadAmount)
 		t.clientTorrentHashToDownload[vals.infohash] = vals.downloadbytes
 	} else {
 		t.clientTorrentHashToDownload[vals.infohash] = vals.downloadbytes
 		t.downloadSpeed = vals.downloadbytes
-		// download per second 
+		// download per second
 	}
 	// fmt.Println("downloadspeed")
 	dictionary := pools.Dictionaries.Get()

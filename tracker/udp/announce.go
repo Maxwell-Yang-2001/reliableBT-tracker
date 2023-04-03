@@ -53,7 +53,7 @@ func (u *UDPTracker) announce(announce *protocol.Announce, remote *net.UDPAddr, 
 		peerComplete = true
 	}
 
-	u.peerdb.Save(addrPort.Addr(), announce.Port, peerComplete, announce.InfoHash, announce.PeerID)
+	u.peerdb.Save(addrPort.Addr(), announce.Port, peerComplete, announce.InfoHash, announce.PeerID, announce.Uploaded, announce.Downloaded)
 
 	complete, incomplete := u.peerdb.HashStats(announce.InfoHash)
 	peers4, peers6 := u.peerdb.PeerListBytes(announce.InfoHash, uint(announce.NumWant))

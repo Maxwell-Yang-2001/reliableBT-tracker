@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/crimist/trakx/pools"
+	"github.com/crimist/trakx/tracker/config"
 	"github.com/crimist/trakx/tracker/stats"
 	"github.com/crimist/trakx/tracker/storage"
 )
 
-func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash storage.Hash, id storage.PeerID) {
+func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash storage.Hash, id storage.PeerID, uploaded int64, downloaded int64) (isBad bool) {
 	// get/create the map
 	memoryDb.mutex.RLock()
 	peermap, ok := memoryDb.hashmap[hash]
@@ -84,11 +85,28 @@ func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash sto
 		}
 	}
 
+	// now to identify bad actors - we will adopt a very simple design (that does not necessarily work 100%)
+	// a peer is "bad" if:
+	// it is not yet incomplete
+	// it uploads nothing, but downloads something
+	// there have been multiple leechers in the swarm since the last time this records is made
+	if !complete && peer.Uploaded == uploaded && peer.Downloaded < downloaded && peer.LeechersLastTime >= config.Config.Behavior.MinLeechers {
+		isBad = true
+	}
+
 	// update peer
 	peer.Complete = complete
 	peer.IP = ip
 	peer.Port = port
 	peer.LastSeen = time.Now().Unix()
+	if peer.Uploaded < uploaded {
+		peer.Uploaded = uploaded
+	}
+	if peer.Downloaded < downloaded {
+		peer.Downloaded = downloaded
+	}
+	peer.LeechersLastTime = peermap.Incomplete
+	return
 }
 
 // delete is similar to drop but doesn't lock
