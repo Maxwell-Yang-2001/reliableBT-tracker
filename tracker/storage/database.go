@@ -45,10 +45,11 @@ type Database interface {
 	Trim()
 	SyncExpvars() error
 
-	Save(netip.Addr, uint16, bool, Hash, PeerID, int64, int64) bool
-	Drop(Hash, PeerID)
+	Save(netip.Addr, uint16, bool, Hash, PeerID, int64, int64, bool) bool
+	Drop(Hash, PeerID, bool)
 
 	HashStats(Hash) (uint16, uint16)
+	BaselineProvider(Hash) ([]byte, error)
 	PeerList(Hash, uint, bool) [][]byte
 	PeerListBytes(Hash, uint) ([]byte, []byte)
 

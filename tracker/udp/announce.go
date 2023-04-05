@@ -27,7 +27,7 @@ func (u *UDPTracker) announce(announce *protocol.Announce, remote *net.UDPAddr, 
 	}
 
 	if announce.Event == protocol.EventStopped {
-		u.peerdb.Drop(announce.InfoHash, announce.PeerID)
+		u.peerdb.Drop(announce.InfoHash, announce.PeerID, false)
 
 		resp := protocol.AnnounceResp{
 			Action:        protocol.ActionAnnounce,
@@ -53,7 +53,7 @@ func (u *UDPTracker) announce(announce *protocol.Announce, remote *net.UDPAddr, 
 		peerComplete = true
 	}
 
-	u.peerdb.Save(addrPort.Addr(), announce.Port, peerComplete, announce.InfoHash, announce.PeerID, announce.Uploaded, announce.Downloaded)
+	u.peerdb.Save(addrPort.Addr(), announce.Port, peerComplete, announce.InfoHash, announce.PeerID, announce.Uploaded, announce.Downloaded, false)
 
 	complete, incomplete := u.peerdb.HashStats(announce.InfoHash)
 	peers4, peers6 := u.peerdb.PeerListBytes(announce.InfoHash, uint(announce.NumWant))

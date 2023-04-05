@@ -23,7 +23,7 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		Port:     0x4f50,
 		LastSeen: time.Now().Unix(),
 	}
-	db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
+	db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded, false)
 
 	oldhahmap := db.hashmap
 	data, err := db.encodeBinary()

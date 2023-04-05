@@ -13,16 +13,17 @@ import (
 )
 
 type announceParams struct {
-	compact    bool
-	nopeerid   bool
-	noneleft   bool
-	event      string
-	port       string
-	hash       string
-	peerid     string
-	numwant    string
-	uploaded   int64
-	downloaded int64
+	compact          bool
+	nopeerid         bool
+	noneleft         bool
+	event            string
+	port             string
+	hash             string
+	peerid           string
+	numwant          string
+	uploaded         int64
+	downloaded       int64
+	baselineProvider bool
 }
 
 func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Addr) {
@@ -48,7 +49,7 @@ func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Add
 
 	// get if stop before continuing
 	if vals.event == "stopped" {
-		t.peerdb.Drop(hash, peerid)
+		t.peerdb.Drop(hash, peerid, vals.baselineProvider)
 		conn.Write(httpSuccessBytes)
 		return
 	}
@@ -88,7 +89,7 @@ func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Add
 	uploaded := vals.uploaded
 	downloaded := vals.downloaded
 
-	t.peerdb.Save(ip, uint16(portInt), peerComplete, hash, peerid, uploaded, downloaded)
+	t.peerdb.Save(ip, uint16(portInt), peerComplete, hash, peerid, uploaded, downloaded, vals.baselineProvider)
 	complete, incomplete := t.peerdb.HashStats(hash)
 
 	interval := int64(config.Config.Announce.Base.Seconds())
@@ -109,6 +110,15 @@ func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Add
 		pools.Peerlists6.Put(peers6)
 	} else {
 		dictionary.BytesliceSlice("peers", t.peerdb.PeerList(hash, numwant, vals.nopeerid))
+	}
+
+	// For peers that are not a complete baseline provider (can be a baseline provider that just leeches first)
+	// provide a random baseline provider if one exists
+	if !vals.baselineProvider || !peerComplete {
+		baselineProvider, err := t.peerdb.BaselineProvider(hash)
+		if err == nil {
+			dictionary.StringBytes("baselineProvider", baselineProvider)
+		}
 	}
 
 	// double write no append is more efficient when > ~250 peers in response

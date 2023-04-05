@@ -115,6 +115,10 @@ func (w *workers) work() {
 					v.uploaded, _ = strconv.ParseInt(val, 10, 64)
 				case "downloaded":
 					v.downloaded, _ = strconv.ParseInt(val, 10, 64)
+				case "baselineProvider":
+					if val == "1" {
+						v.baselineProvider = true
+					}
 				}
 			}
 
