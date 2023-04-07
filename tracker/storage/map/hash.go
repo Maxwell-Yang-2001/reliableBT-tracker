@@ -3,6 +3,7 @@ package gomap
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/rand"
 
 	"github.com/crimist/trakx/pools"
@@ -33,7 +34,7 @@ func (db *Memory) HashStats(hash storage.Hash) (complete, incomplete uint16) {
 }
 
 // Obtain one random baseline provider from the available ones in the swarm if possible
-func (db *Memory) BaselineProvider(hash storage.Hash) (baselineProvider []byte, err error) {
+func (db *Memory) BaselineProvider(hash storage.Hash, compact bool, removePeerId bool) (baselineProvider []byte, err error) {
 	db.mutex.RLock()
 	peermap, ok := db.hashmap[hash]
 	db.mutex.RUnlock()
@@ -48,27 +49,49 @@ func (db *Memory) BaselineProvider(hash storage.Hash) (baselineProvider []byte, 
 		peermap.mutex.RUnlock()
 		return baselineProvider, errors.New("No baseline provider for specified hash found")
 	}
+
 	// naive: Randomly choose a baseline provider and return it
 	randIndex := rand.Intn(numBaselineProviders)
-	for _, knownProvider := range peermap.BaselineProviders {
+	for id, knownProvider := range peermap.BaselineProviders {
 		if randIndex == 0 {
-			dictionary := pools.Dictionaries.Get()
-			dictionary.String("ip", knownProvider.IP.String())
-			dictionary.Int64("port", int64(knownProvider.Port))
+			if compact {
+				// if compact, put each byte based on IPV4/V6
+				if knownProvider.IP.Is6() {
+					baselineProvider = make([]byte, 18)
+					copy(baselineProvider[:16], knownProvider.IP.AsSlice())
+					binary.BigEndian.PutUint16(baselineProvider[16:18], knownProvider.Port)
+					baselineProvider = baselineProvider[:18]
+				} else {
+					baselineProvider = make([]byte, 6)
+					copy(baselineProvider[:4], knownProvider.IP.AsSlice())
+					binary.BigEndian.PutUint16(baselineProvider[4:6], knownProvider.Port)
+				}
+			} else {
+				// otherwise, use a dictionary and place necessary information
+				dictionary := pools.Dictionaries.Get()
+				if !removePeerId {
+					dictionary.String("peer id", string(id[:]))
+				}
+				dictionary.String("ip", knownProvider.IP.String())
+				dictionary.Int64("port", int64(knownProvider.Port))
 
-			dictBytes := dictionary.GetBytes()
-			baselineProvider = make([]byte, len(dictBytes))
-			copy(baselineProvider, dictBytes)
+				dictBytes := dictionary.GetBytes()
+				baselineProvider := make([]byte, len(dictBytes))
+				copy(baselineProvider, dictBytes)
 
-			dictionary.Reset()
-			pools.Dictionaries.Put(dictionary)
+				dictionary.Reset()
+				pools.Dictionaries.Put(dictionary)
+			}
+
+			peermap.mutex.RUnlock()
+			return baselineProvider, nil
 		}
 
 		randIndex -= 1
 	}
 
 	peermap.mutex.RUnlock()
-	return baselineProvider, nil
+	return baselineProvider, errors.New("Baseline provider picking goes wrong")
 }
 
 // PeerList returns a peer list for the given hash capped at max
@@ -101,6 +124,7 @@ func (db *Memory) PeerList(hash storage.Hash, numWant uint, removePeerId bool) (
 		}
 		dictionary.String("ip", peer.IP.String())
 		dictionary.Int64("port", int64(peer.Port))
+		fmt.Printf("Providing peer with IP: %s\n", peer.IP.String())
 
 		dictBytes := dictionary.GetBytes()
 		peers[i] = make([]byte, len(dictBytes))

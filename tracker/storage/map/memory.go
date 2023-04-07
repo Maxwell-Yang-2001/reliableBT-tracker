@@ -31,9 +31,9 @@ type PeerMap struct {
 }
 
 type Memory struct {
-	mutex           sync.RWMutex
-	hashmap         map[storage.Hash]*PeerMap
-	reliableSources map[storage.ReliableSource]bool
+	mutex          sync.RWMutex
+	hashmap        map[storage.Hash]*PeerMap
+	trustedSources map[storage.ReliableSource]bool
 
 	backup storage.Backup
 }
@@ -67,14 +67,14 @@ func (db *Memory) Init(backup storage.Backup) error {
 func (db *Memory) make() {
 	db.hashmap = make(map[storage.Hash]*PeerMap, hashMapPrealloc)
 	// reliable sources information is available from config
-	db.reliableSources = make(map[storage.ReliableSource]bool, reliableSourcePrealloc)
-	for _, rawAddr := range config.Config.DB.ReliableSources {
+	db.trustedSources = make(map[storage.ReliableSource]bool, reliableSourcePrealloc)
+	for _, rawAddr := range config.Config.DB.TrustedSources {
 		ip, err := netip.ParseAddr(rawAddr.IP)
 		if err != nil {
 			continue
 		}
 		addr := storage.ReliableSource{IP: ip, Port: rawAddr.Port}
-		db.reliableSources[addr] = true
+		db.trustedSources[addr] = true
 	}
 }
 

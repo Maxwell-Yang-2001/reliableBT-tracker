@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"net/netip"
@@ -89,7 +90,13 @@ func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Add
 	uploaded := vals.uploaded
 	downloaded := vals.downloaded
 
-	t.peerdb.Save(ip, uint16(portInt), peerComplete, hash, peerid, uploaded, downloaded, vals.baselineProvider)
+	goodActing := t.peerdb.Save(ip, uint16(portInt), peerComplete, hash, peerid, uploaded, downloaded, vals.baselineProvider)
+	// Punish the "fraud" baseline provider by just ignoring the request
+	if !goodActing && vals.baselineProvider {
+		fmt.Println("Fraud caught haha!")
+		return
+	}
+
 	complete, incomplete := t.peerdb.HashStats(hash)
 
 	interval := int64(config.Config.Announce.Base.Seconds())
@@ -112,10 +119,10 @@ func (t *HTTPTracker) announce(conn net.Conn, vals *announceParams, ip netip.Add
 		dictionary.BytesliceSlice("peers", t.peerdb.PeerList(hash, numwant, vals.nopeerid))
 	}
 
-	// For peers that are not a complete baseline provider (can be a baseline provider that just leeches first)
-	// provide a random baseline provider if one exists
+	// For peers that are not a complete baseline provider (can be any peer or be a baseline provider that just leeches first)
+	// provide a random complete baseline provider if one exists
 	if !vals.baselineProvider || !peerComplete {
-		baselineProvider, err := t.peerdb.BaselineProvider(hash)
+		baselineProvider, err := t.peerdb.BaselineProvider(hash, vals.compact, vals.nopeerid)
 		if err == nil {
 			dictionary.StringBytes("baselineProvider", baselineProvider)
 		}

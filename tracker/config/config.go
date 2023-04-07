@@ -59,9 +59,9 @@ type Configuration struct {
 			Type      string
 			Path      string
 		}
-		ReliableSources []RawSocketAddress
-		Trim            time.Duration
-		Expiry          time.Duration
+		TrustedSources []RawSocketAddress
+		Trim           time.Duration
+		Expiry         time.Duration
 	}
 	Behavior struct {
 		MinLeechers uint16

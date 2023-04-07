@@ -10,6 +10,10 @@ import (
 	"github.com/crimist/trakx/tracker/storage"
 )
 
+// Save saves either a peer or a baseline provider to db, if applicable
+// Return false if:
+// - peer is a "bad actor", in which case some limits might apply
+// - baseline provider is a "fraud", in which case it is not stored to the db
 func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash storage.Hash, id storage.PeerID, uploaded int64, downloaded int64, baselineProvider bool) (isBad bool) {
 	// get/create the map
 	memoryDb.mutex.RLock()
@@ -25,6 +29,17 @@ func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash sto
 
 	// if saving a baseline provider
 	if baselineProvider {
+		// first check against the trusted sources
+		memoryDb.mutex.RLock()
+		currentSource := storage.ReliableSource{IP: ip, Port: port}
+		_, ok = memoryDb.trustedSources[currentSource]
+		memoryDb.mutex.RUnlock()
+
+		// if it is unknown, we found a "fraud"
+		if !ok {
+			return false
+		}
+
 		if !complete {
 			// If incomplete, it will only act as a leecher in the first, thus not truly a "baseline provider" yet
 			// As we want to avoid promoting it to other members, no change to the storage (neither peers nor baseline providers)
@@ -40,6 +55,8 @@ func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash sto
 		if !bpExists {
 			bp = pools.Peers.Get()
 			peermap.BaselineProviders[id] = bp
+			bp.IP = ip
+			bp.Port = port
 		}
 		peermap.mutex.Unlock()
 

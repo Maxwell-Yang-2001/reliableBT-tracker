@@ -49,7 +49,7 @@ type Database interface {
 	Drop(Hash, PeerID, bool)
 
 	HashStats(Hash) (uint16, uint16)
-	BaselineProvider(Hash) ([]byte, error)
+	BaselineProvider(Hash, bool, bool) ([]byte, error)
 	PeerList(Hash, uint, bool) [][]byte
 	PeerListBytes(Hash, uint) ([]byte, []byte)
 

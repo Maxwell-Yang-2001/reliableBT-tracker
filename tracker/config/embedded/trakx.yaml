@@ -104,11 +104,17 @@ db:
     path: "ENV:DATABASE_URL"
 
   # reliable sources (to become reliable baseline providers)
-  reliableSources:
+  trustedSources:
     - ip: 127.0.0.1
       port: 4000
     - ip: 127.0.0.1
       port: 4001
+    - ip: 127.0.0.1
+      port: 4002
+    - ip: 127.0.0.1
+      port: 4003
+    - ip: 127.0.0.1
+      port: 4004
 
   # interval for removing expired peers
   trim: 10m
