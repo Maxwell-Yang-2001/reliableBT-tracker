@@ -3,7 +3,6 @@ package gomap
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/rand"
 
 	"github.com/crimist/trakx/pools"
@@ -124,7 +123,6 @@ func (db *Memory) PeerList(hash storage.Hash, numWant uint, removePeerId bool) (
 		}
 		dictionary.String("ip", peer.IP.String())
 		dictionary.Int64("port", int64(peer.Port))
-		fmt.Printf("Providing peer with IP: %s\n", peer.IP.String())
 
 		dictBytes := dictionary.GetBytes()
 		peers[i] = make([]byte, len(dictBytes))
