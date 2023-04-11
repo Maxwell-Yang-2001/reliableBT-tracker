@@ -2,6 +2,8 @@ package gomap
 
 import (
 	"encoding/binary"
+	"errors"
+	"math/rand"
 
 	"github.com/crimist/trakx/pools"
 	"github.com/crimist/trakx/tracker/storage"
@@ -28,6 +30,67 @@ func (db *Memory) HashStats(hash storage.Hash) (complete, incomplete uint16) {
 	peermap.mutex.RUnlock()
 
 	return
+}
+
+// Obtain one random baseline provider from the available ones in the swarm if possible
+func (db *Memory) BaselineProvider(hash storage.Hash, compact bool, removePeerId bool) (baselineProvider []byte, err error) {
+	db.mutex.RLock()
+	peermap, ok := db.hashmap[hash]
+	db.mutex.RUnlock()
+	if !ok {
+		return baselineProvider, errors.New("No peermap at specified hash found")
+	}
+
+	peermap.mutex.RLock()
+
+	numBaselineProviders := len(peermap.BaselineProviders)
+	if numBaselineProviders == 0 {
+		peermap.mutex.RUnlock()
+		return baselineProvider, errors.New("No baseline provider for specified hash found")
+	}
+
+	// naive: Randomly choose a baseline provider and return it
+	randIndex := rand.Intn(numBaselineProviders)
+	for id, knownProvider := range peermap.BaselineProviders {
+		if randIndex == 0 {
+			if compact {
+				// if compact, put each byte based on IPV4/V6
+				if knownProvider.IP.Is6() {
+					baselineProvider = make([]byte, 18)
+					copy(baselineProvider[:16], knownProvider.IP.AsSlice())
+					binary.BigEndian.PutUint16(baselineProvider[16:18], knownProvider.Port)
+					baselineProvider = baselineProvider[:18]
+				} else {
+					baselineProvider = make([]byte, 6)
+					copy(baselineProvider[:4], knownProvider.IP.AsSlice())
+					binary.BigEndian.PutUint16(baselineProvider[4:6], knownProvider.Port)
+				}
+			} else {
+				// otherwise, use a dictionary and place necessary information
+				dictionary := pools.Dictionaries.Get()
+				if !removePeerId {
+					dictionary.String("peer id", string(id[:]))
+				}
+				dictionary.String("ip", knownProvider.IP.String())
+				dictionary.Int64("port", int64(knownProvider.Port))
+
+				dictBytes := dictionary.GetBytes()
+				baselineProvider := make([]byte, len(dictBytes))
+				copy(baselineProvider, dictBytes)
+
+				dictionary.Reset()
+				pools.Dictionaries.Put(dictionary)
+			}
+
+			peermap.mutex.RUnlock()
+			return baselineProvider, nil
+		}
+
+		randIndex -= 1
+	}
+
+	peermap.mutex.RUnlock()
+	return baselineProvider, errors.New("Baseline provider picking goes wrong")
 }
 
 // PeerList returns a peer list for the given hash capped at max

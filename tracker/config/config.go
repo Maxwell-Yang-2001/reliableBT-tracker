@@ -59,8 +59,9 @@ type Configuration struct {
 			Type      string
 			Path      string
 		}
-		Trim   time.Duration
-		Expiry time.Duration
+		TrustedSources []RawSocketAddress
+		Trim           time.Duration
+		Expiry         time.Duration
 	}
 	Behavior struct {
 		MinLeechers uint16
@@ -69,6 +70,11 @@ type Configuration struct {
 		Log string
 		Pid string
 	}
+}
+
+type RawSocketAddress struct {
+	IP   string
+	Port uint16
 }
 
 // Loaded returns true if the config was successfully parsed and loaded.

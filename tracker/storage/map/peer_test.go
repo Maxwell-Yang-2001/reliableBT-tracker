@@ -25,7 +25,7 @@ func TestSaveDrop(t *testing.T) {
 		IP:       testIP,
 		Port:     4321,
 	}
-	db.Save(peerWrite.IP, peerWrite.Port, peerWrite.Complete, testHash, testId, testUploaded, testDownloaded)
+	db.Save(peerWrite.IP, peerWrite.Port, peerWrite.Complete, testHash, testId, testUploaded, testDownloaded, false)
 	peerRead, ok := db.hashmap[testHash].Peers[testId]
 
 	if !ok {
@@ -50,7 +50,7 @@ func TestSaveDrop(t *testing.T) {
 		t.Errorf("Peer Downloaded not equal %v:%v", peerRead.Port, peerWrite.Port)
 	}
 
-	db.Drop(testHash, testId)
+	db.Drop(testHash, testId, false)
 	_, ok = db.hashmap[testHash].Peers[testId]
 
 	if ok {
@@ -60,7 +60,7 @@ func TestSaveDrop(t *testing.T) {
 
 func benchmarkSave(b *testing.B, db *Memory, peer storage.Peer, hash storage.Hash, peerid storage.PeerID) {
 	for n := 0; n < b.N; n++ {
-		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
+		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded, false)
 	}
 }
 
@@ -86,7 +86,7 @@ func BenchmarkSave(b *testing.B) {
 
 func benchmarkDrop(b *testing.B, db *Memory, hash storage.Hash, peerid storage.PeerID) {
 	for n := 0; n < b.N; n++ {
-		db.Drop(hash, peerid)
+		db.Drop(hash, peerid, false)
 	}
 }
 
@@ -104,8 +104,8 @@ func BenchmarkDrop(b *testing.B) {
 
 func benchmarkSaveDrop(b *testing.B, db *Memory, peer storage.Peer, hash storage.Hash, peerid storage.PeerID) {
 	for n := 0; n < b.N; n++ {
-		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
-		db.Drop(hash, peerid)
+		db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded, false)
+		db.Drop(hash, peerid, false)
 	}
 }
 
@@ -145,8 +145,8 @@ func benchmarkSaveDropParallel(b *testing.B, routines int) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
-			db.Drop(hash, peerid)
+			db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded, false)
+			db.Drop(hash, peerid, false)
 		}
 	})
 }

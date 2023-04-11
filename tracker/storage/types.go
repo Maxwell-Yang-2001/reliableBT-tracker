@@ -18,4 +18,10 @@ type (
 		Downloaded       int64
 		LeechersLastTime uint16
 	}
+
+	// Reliable source contains IP and port of a known reliable source.
+	ReliableSource struct {
+		IP   netip.Addr
+		Port uint16
+	}
 )

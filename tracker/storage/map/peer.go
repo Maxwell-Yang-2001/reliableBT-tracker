@@ -10,7 +10,11 @@ import (
 	"github.com/crimist/trakx/tracker/storage"
 )
 
-func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash storage.Hash, id storage.PeerID, uploaded int64, downloaded int64) (isBad bool) {
+// Save saves either a peer or a baseline provider to db, if applicable
+// Return false if:
+// - peer is a "bad actor", in which case some limits might apply
+// - baseline provider is a "fraud", in which case it is not stored to the db
+func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash storage.Hash, id storage.PeerID, uploaded int64, downloaded int64, baselineProvider bool) (isBad bool) {
 	// get/create the map
 	memoryDb.mutex.RLock()
 	peermap, ok := memoryDb.hashmap[hash]
@@ -21,6 +25,51 @@ func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash sto
 		memoryDb.mutex.Lock()
 		peermap = memoryDb.makePeermap(hash)
 		memoryDb.mutex.Unlock()
+	}
+
+	// if saving a baseline provider
+	if baselineProvider {
+		// first check against the trusted sources
+		memoryDb.mutex.RLock()
+		currentSource := storage.ReliableSource{IP: ip, Port: port}
+		_, ok = memoryDb.trustedSources[currentSource]
+		memoryDb.mutex.RUnlock()
+
+		// if it is unknown, we found a "fraud"
+		if !ok {
+			return false
+		}
+
+		if !complete {
+			// If incomplete, it will only act as a leecher in the first, thus not truly a "baseline provider" yet
+			// As we want to avoid promoting it to other members, no change to the storage (neither peers nor baseline providers)
+			// However, it will always be considered as a good actor thus maximum allowed peer list will be provided
+			return true
+		}
+		peermap.mutex.RLock()
+		bp, bpExists := peermap.BaselineProviders[id]
+		peermap.mutex.RUnlock()
+
+		peermap.mutex.Lock()
+		// if baseline provider does not exist then create
+		if !bpExists {
+			bp = pools.Peers.Get()
+			peermap.BaselineProviders[id] = bp
+			bp.IP = ip
+			bp.Port = port
+		}
+		peermap.mutex.Unlock()
+
+		// update metrics
+		if !fast && !bpExists {
+			stats.IPStats.Lock()
+			stats.IPStats.Inc(ip)
+			stats.IPStats.Unlock()
+		}
+
+		bp.LastSeen = time.Now().Unix()
+		// baseline provider is never a bad actor
+		return true
 	}
 
 	// get peer
@@ -110,20 +159,26 @@ func (memoryDb *Memory) Save(ip netip.Addr, port uint16, complete bool, hash sto
 }
 
 // delete is similar to drop but doesn't lock
-func (db *Memory) delete(peer *storage.Peer, peermap *PeerMap, id storage.PeerID) {
-	delete(peermap.Peers, id)
-
-	if peer.Complete {
-		peermap.Complete--
+func (db *Memory) delete(peer *storage.Peer, peermap *PeerMap, id storage.PeerID, baselineProvider bool) {
+	if baselineProvider {
+		delete(peermap.BaselineProviders, id)
 	} else {
-		peermap.Incomplete--
+		delete(peermap.Peers, id)
+
+		if peer.Complete {
+			peermap.Complete--
+		} else {
+			peermap.Incomplete--
+		}
 	}
 
 	if !fast {
-		if peer.Complete {
-			stats.Seeds.Add(-1)
-		} else {
-			stats.Leeches.Add(-1)
+		if !baselineProvider {
+			if peer.Complete {
+				stats.Seeds.Add(-1)
+			} else {
+				stats.Leeches.Add(-1)
+			}
 		}
 
 		stats.IPStats.Lock()
@@ -134,8 +189,8 @@ func (db *Memory) delete(peer *storage.Peer, peermap *PeerMap, id storage.PeerID
 	pools.Peers.Put(peer)
 }
 
-// Drop deletes peer
-func (db *Memory) Drop(hash storage.Hash, id storage.PeerID) {
+// Drop deletes peer or baseline provider
+func (db *Memory) Drop(hash storage.Hash, id storage.PeerID, baselineProvider bool) {
 	// get the peermap
 	db.mutex.RLock()
 	peermap, ok := db.hashmap[hash]
@@ -144,8 +199,27 @@ func (db *Memory) Drop(hash storage.Hash, id storage.PeerID) {
 		return
 	}
 
-	// get the peer and remove it
 	peermap.mutex.Lock()
+	// get the baseline provider and remove it
+	if baselineProvider {
+		peer, ok := peermap.BaselineProviders[id]
+		if !ok {
+			peermap.mutex.Unlock()
+			return
+		}
+
+		if !fast {
+			stats.IPStats.Lock()
+			stats.IPStats.Remove(peer.IP)
+			stats.IPStats.Unlock()
+		}
+		peermap.mutex.Unlock()
+		// free the peer back to the pool
+		pools.Peers.Put(peer)
+		return
+	}
+
+	// get the peer and remove it
 	peer, ok := peermap.Peers[id]
 	if !ok {
 		peermap.mutex.Unlock()

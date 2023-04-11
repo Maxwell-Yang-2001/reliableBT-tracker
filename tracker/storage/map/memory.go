@@ -5,6 +5,7 @@
 package gomap
 
 import (
+	"net/netip"
 	"sync"
 	"time"
 
@@ -16,20 +17,23 @@ import (
 )
 
 const (
-	hashMapPrealloc = 250_000
-	peerMapPrealloc = 1
+	hashMapPrealloc        = 250_000
+	reliableSourcePrealloc = 100
+	peerMapPrealloc        = 1
 )
 
 type PeerMap struct {
-	mutex      sync.RWMutex // can't be embedded (https://github.com/golang/go/issues/5819#issuecomment-250596051)
-	Complete   uint16
-	Incomplete uint16
-	Peers      map[storage.PeerID]*storage.Peer
+	mutex             sync.RWMutex // can't be embedded (https://github.com/golang/go/issues/5819#issuecomment-250596051)
+	Complete          uint16
+	Incomplete        uint16
+	Peers             map[storage.PeerID]*storage.Peer
+	BaselineProviders map[storage.PeerID]*storage.Peer
 }
 
 type Memory struct {
-	mutex   sync.RWMutex
-	hashmap map[storage.Hash]*PeerMap
+	mutex          sync.RWMutex
+	hashmap        map[storage.Hash]*PeerMap
+	trustedSources map[storage.ReliableSource]bool
 
 	backup storage.Backup
 }
@@ -62,12 +66,23 @@ func (db *Memory) Init(backup storage.Backup) error {
 
 func (db *Memory) make() {
 	db.hashmap = make(map[storage.Hash]*PeerMap, hashMapPrealloc)
+	// reliable sources information is available from config
+	db.trustedSources = make(map[storage.ReliableSource]bool, reliableSourcePrealloc)
+	for _, rawAddr := range config.Config.DB.TrustedSources {
+		ip, err := netip.ParseAddr(rawAddr.IP)
+		if err != nil {
+			continue
+		}
+		addr := storage.ReliableSource{IP: ip, Port: rawAddr.Port}
+		db.trustedSources[addr] = true
+	}
 }
 
 func (db *Memory) makePeermap(h storage.Hash) (peermap *PeerMap) {
 	// build struct and assign
 	peermap = new(PeerMap)
 	peermap.Peers = make(map[storage.PeerID]*storage.Peer, peerMapPrealloc)
+	peermap.BaselineProviders = make(map[storage.PeerID]*storage.Peer, peerMapPrealloc)
 	db.hashmap[h] = peermap
 	return
 }
@@ -83,11 +98,11 @@ func (db *Memory) Check() bool {
 func (db *Memory) Trim() {
 	start := time.Now()
 	config.Logger.Info("Trimming database")
-	peers, hashes := db.trim()
-	config.Logger.Info("Trimmed database", zap.Int("peers", peers), zap.Int("hashes", hashes), zap.Duration("duration", time.Since(start)))
+	peers, baselineProviders, hashes := db.trim()
+	config.Logger.Info("Trimmed database", zap.Int("peers", peers), zap.Int("baselineProviders", baselineProviders), zap.Int("hashes", hashes), zap.Duration("duration", time.Since(start)))
 }
 
-func (db *Memory) trim() (peers, hashes int) {
+func (db *Memory) trim() (peers, baselineProviders, hashes int) {
 	now := time.Now().Unix()
 	peerTimeout := int64(config.Config.DB.Expiry.Seconds())
 
@@ -98,8 +113,14 @@ func (db *Memory) trim() (peers, hashes int) {
 		peermap.mutex.Lock()
 		for id, peer := range peermap.Peers {
 			if now-peer.LastSeen > peerTimeout {
-				db.delete(peer, peermap, id)
+				db.delete(peer, peermap, id, false)
 				peers++
+			}
+		}
+		for id, baselineProvider := range peermap.BaselineProviders {
+			if baselineProvider.LastSeen > peerTimeout {
+				db.delete(baselineProvider, peermap, id, true)
+				baselineProviders++
 			}
 		}
 		peersize := len(peermap.Peers)

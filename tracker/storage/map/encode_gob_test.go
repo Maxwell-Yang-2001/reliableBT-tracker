@@ -23,7 +23,7 @@ func TestEncodeDecodeGob(t *testing.T) {
 		Uploaded:   1234,
 		Downloaded: 4321,
 	}
-	db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded)
+	db.Save(peer.IP, peer.Port, peer.Complete, hash, peerid, peer.Uploaded, peer.Downloaded, false)
 
 	oldhahmap := db.hashmap
 	data, err := db.encodeGob()
