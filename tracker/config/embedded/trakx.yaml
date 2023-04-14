@@ -20,9 +20,9 @@ debug:
 
 # announce interval = base + [0, fuzz]
 announce:
-  base: 30m
+  base: 1s
   # fuzz >= 0
-  fuzz: 5m
+  fuzz: 0s
 
 # http tracker vars
 http:
