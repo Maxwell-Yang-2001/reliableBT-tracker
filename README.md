@@ -1,6 +1,6 @@
 # Trakx
 
-**This is the tracker component for the Reliable BitTorrent group project (UBC CPSC 416 2022W2). The client (peer) repository can be found [here](https://github.com/kaiyyang/cpsc416_GroupProject_ReliableBT), and the validation repository can be found [here](https://github.com/Maxwell-Yang-2001/reliableBT-validation).**
+This is the tracker component for the Reliable BitTorrent group project (UBC CPSC 416 2022W2). The peer (validation) repository can be found [here](https://github.com/kaiyyang/cpsc416_GroupProject_ReliableBT), and the validation repository can be found [here](https://github.com/Maxwell-Yang-2001/reliableBT-validation).
 
 <hr>
 
